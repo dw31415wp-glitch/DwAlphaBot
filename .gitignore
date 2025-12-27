@@ -1,0 +1,5 @@
+user-config.py
+user-password.cfg
+
+apicache/
+__pycache__/

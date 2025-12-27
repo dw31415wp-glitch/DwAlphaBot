@@ -1,0 +1,4 @@
+pywikibot
+mwparserfromhell
+requests
+python-dateutil
