@@ -14,6 +14,9 @@ def get_comments_from_section_text(text: str) -> list[dict[str, str]]:
     for node in nodes:
         print('Node type:', type(node))
         print('Node content:', str(node)[:100], '...')
+        lines = node.splitlines()
+        for line in lines:
+            print('  Line:', line)
 
 if __name__ == "__main__":
     from pathlib import Path
