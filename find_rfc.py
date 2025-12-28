@@ -108,10 +108,21 @@ def get_rfc_list():
         rfc_page_results = get_links_from_text(list_page)
         for result in rfc_page_results:
             rfc_page, link = result
+            target_rfc = link.section or "*******No section linked*****"
+            # for section like rfc ABD0AB3
+            # extract the id after 'rfc '
+            rfc_id = ""
+            if 'rfc ' in target_rfc.lower():
+                rfc_id = target_rfc.lower().split('rfc ')[1].strip()
+            # if no id found, skip
+            if rfc_id == "":
+                continue
             print(f"    - {rfc_page.title()} (Link: {link})")
             sections = get_sections_from_page(rfc_page)
             for sec in sections:
-                print(f"      Section: {sec['heading'][:30]}... Text preview: {sec['text'][:30]}...")
+                if rfc_id in sec['text'].lower():
+                    print(f"        (Contains 'rfc')")
+                    print(f"      Section: {sec['heading'][:30]}... Text preview: {sec['text'][:30]}...")
 
         # collect the list of links on the page
         # links = list_page.linkedPages()
