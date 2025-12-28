@@ -6,5 +6,9 @@ NOTIFICATION_TEMPLATE = '{{{{subst:User:DwBot/ReviewerAfdNotification|article={a
 OPT_OUT_TEMPLATE = 'User:Dw31415/NoNPPDelivery'
 DRY_RUN = True
 KILL_PAGE = 'User:Dw31415/kill'
+RESULTS_PAGE = 'https://en.wikipedia.org/wiki/User:DwAlphaBot/RfcEditStats'
+LIST_OF_RFC_PAGES = [
+    'Wikipedia:Requests for comment/Politics, government, and law'
+]
 
-site = pywikibot.Site('test', 'wikipedia')
+site = pywikibot.Site('en', 'wikipedia')

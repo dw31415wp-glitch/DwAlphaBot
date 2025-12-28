@@ -1,12 +1,21 @@
+
 import time
 from threading import Thread
-from config import DRY_RUN
+
+from pywikibot import Page
+from config import DRY_RUN, site, LIST_OF_RFC_PAGES
+from find_rfc import get_rfc_list
 from kill_page import check_kill_page
 from event_handler import listen_eventstream
 #from notification_processor import process_pending_notifications
 
-
 def main():
+
+    get_rfc_list()
+
+    # exit for now
+    return
+
     print(f"starting AfD bot (Dry run: {DRY_RUN})")
     # Thread(target=listen_eventstream, daemon=True).start()
     start_time = time.time()
