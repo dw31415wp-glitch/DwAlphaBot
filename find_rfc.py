@@ -1,8 +1,10 @@
 
 
+import asyncio
 from pywikibot import Link, Page
 from config import LIST_OF_RFC_PAGES, MAX_RFC_PAGES_TO_PROCESS, site
 from typing import List, Tuple
+import mwparserfromhell
 
 def is_not_other_list_page(page: Page) -> bool:
     other_list_pages = [
@@ -37,7 +39,7 @@ def get_links_from_text(page: Page) -> List[Tuple[Page, Link]]:
                 results.append((rfc_page, link))
                 rfc_number += 1
                 if rfc_number >= MAX_RFC_PAGES_TO_PROCESS:
-                    print("Reached max RFC pages to process.")
+                    print(f"Reached max RFC pages to process. {len(results)} pages collected.")
                     return results
 
         except Exception as e:
@@ -46,8 +48,7 @@ def get_links_from_text(page: Page) -> List[Tuple[Page, Link]]:
 
     return results
 
-
-def get_sections_from_page(page: Page) -> list:
+def get_sections_from_page(page: Page, rfc_id: str) -> mwparserfromhell.wikicode.Wikicode | None:
     """Return list of sections as dicts: {'heading': str, 'text': str}.
 
     Uses mwparserfromhell when available; falls back to a regex-based splitter.
@@ -56,15 +57,15 @@ def get_sections_from_page(page: Page) -> list:
 
     # Try mwparserfromhell first for robust parsing
     try:
-        import mwparserfromhell
-
         wikicode = mwparserfromhell.parse(text)
         sections = []
         for sec in wikicode.get_sections(include_lead=False):
+            if rfc_id not in str(sec).lower():
+                continue
             headings = sec.filter_headings()
-            heading = str(headings[0].title).strip() if headings else ""
-            sections.append({"heading": heading, "text": str(sec)})
-        return sections
+            heading = str(headings[0].title).strip() if headings else ""    
+            return sec
+        return None
     except Exception:
         # Fallback: crude regex-based section split
         import re
@@ -91,8 +92,24 @@ def get_sections_from_page(page: Page) -> list:
             sections.append({"heading": last_heading, "text": text[last_end:]})
 
         return sections
-        
-def get_rfc_list():
+    
+class RfcStats:
+    def __init__(self):
+        self.link: Link | None = None
+        self.user_counts: dict[str, int] = {}
+
+def calculate_rfc_stats(rfc_section: mwparserfromhell.wikicode.Wikicode, rfc_id: str, link: Link) -> RfcStats:
+    """Calculate stats for a given RFC section."""
+    stats = RfcStats()
+    stats.link = link
+
+    # Count user mentions in the section
+    for links in rfc_section:
+        pass
+
+    return stats
+
+async def get_rfc_list(rfc_queue: asyncio.Queue) -> None:
     print("RFC Pages to monitor:")
     for page in LIST_OF_RFC_PAGES:
         print(f"- {page}")
@@ -104,6 +121,8 @@ def get_rfc_list():
         
         # print the initial content of the page
         print(f"  Content preview: {list_page.text[:50]}...")
+
+        results = []
 
         rfc_page_results = get_links_from_text(list_page)
         for result in rfc_page_results:
@@ -117,13 +136,16 @@ def get_rfc_list():
             # if no id found, skip
             if rfc_id == "":
                 continue
-            print(f"    - {rfc_page.title()} (Link: {link})")
-            sections = get_sections_from_page(rfc_page)
-            for sec in sections:
-                if rfc_id in sec['text'].lower():
-                    print(f"        (Contains 'rfc')")
-                    print(f"      Section: {sec['heading'][:30]}... Text preview: {sec['text'][:30]}...")
-
+            
+            rfc_section = get_sections_from_page(rfc_page, rfc_id)
+            if rfc_section is not None:
+                print(f"Putting in queue: {rfc_page.title()} (Link: {link})")
+                await rfc_queue.put((rfc_section, rfc_id, link))
+                # results.append(calculate_rfc_stats(rfc_section, rfc_id, link))
+            else:
+                print(f"      No matching section found for RFC ID: {rfc_id}")
+                continue
+            # collect the list of links on the page
         # collect the list of links on the page
         # links = list_page.linkedPages()
         # links = list(filter(is_not_other_list_page, links))

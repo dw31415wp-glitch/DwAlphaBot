@@ -1,8 +1,10 @@
 
+import asyncio
 import time
 from threading import Thread
 
 from pywikibot import Page
+import analyze_rfcs
 from config import DRY_RUN, site, LIST_OF_RFC_PAGES
 from find_rfc import get_rfc_list
 from kill_page import check_kill_page
@@ -11,7 +13,9 @@ from event_handler import listen_eventstream
 
 def main():
 
-    get_rfc_list()
+    # get_rfc_list()
+    
+    asyncio.run(analyze_rfcs.analyze_rfcs())
 
     # exit for now
     return
