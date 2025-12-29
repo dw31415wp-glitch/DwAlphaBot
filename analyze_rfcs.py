@@ -1,6 +1,5 @@
 
 import asyncio
-from threading import Thread
 
 import mwparserfromhell
 from mwparserfromhell.wikicode import Wikicode
@@ -68,25 +67,22 @@ async def analyze_rfcs():
     # create a queue of RFCs to analyze
     rfc_queue = RfcSectionQueue()
     rfc_stats_queue = RfcStatsQueue()
-    # task_queue = asyncio.Queue()
 
-    # start the producer (get_rfc_list may be sync or async)
-    # use a new thread for the producer
-    thread = Thread(target=get_rfc_list, args=(rfc_queue,))
-    thread.start()
-    result_count = 0
-    while result_count < MAX_RFC_PAGES_TO_PROCESS:
-        # create a task to calculate rfc stats
-        await calculate_rfc_stats(rfc_queue, rfc_stats_queue)
-        result_count += 1
+    # Start producer and consumer as concurrent tasks
+    producer_task = asyncio.create_task(get_rfc_list(rfc_queue))
     
-    # create another thread to get rfc list
-
-    thread.join()
-
-    #await asyncio.gather(*tasks)
+    # Run consumer workers concurrently
+    consumer_tasks = [
+        asyncio.create_task(calculate_rfc_stats(rfc_queue, rfc_stats_queue))
+        for _ in range(MAX_RFC_PAGES_TO_PROCESS)
+    ]
     
-
+    # Wait for all to complete or timeout
+    try:
+        await asyncio.gather(producer_task, *consumer_tasks)
+    except Exception as e:
+        print(f"Error: {e}")
+    
     results: list[tuple[RfcStats, str, Link]] = await collect_results(rfc_stats_queue)
     return results
 
