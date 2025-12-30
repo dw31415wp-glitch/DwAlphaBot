@@ -26,7 +26,7 @@ class RfcSectionQueue():
     
 class RfcStatsQueue():
     def __init__(self):
-        self.queue = asyncio.Queue(5)
+        self.queue = asyncio.Queue()
 
     async def put(self, item: tuple[RfcStats, str, Link]) -> None:
         # get the size and print it
@@ -77,7 +77,13 @@ async def collect_results(rfc_stats_queue: RfcStatsQueue) -> list[tuple[RfcStats
             break
     return results
 
-
+async def queue_status_monitor(rfc_queue: RfcSectionQueue, rfc_stats_queue: RfcStatsQueue) -> None:
+    """Periodically prints the sizes of the queues."""
+    while True:
+        rfc_queue_size = rfc_queue.queue.qsize()
+        rfc_stats_queue_size = rfc_stats_queue.queue.qsize()
+        print(f"[Queue Monitor] RFC Section Queue size: {rfc_queue_size}, RFC Stats Queue size: {rfc_stats_queue_size}")
+        await asyncio.sleep(5)  # Adjust the interval as needed
         
 async def analyze_rfcs():
     # create a queue of RFCs to analyze
@@ -88,6 +94,8 @@ async def analyze_rfcs():
     # Start producer as a task
     producer_task = asyncio.create_task(get_rfc_list(rfc_queue))
     consumer_task = asyncio.create_task(calculate_rfc_stats_worker(rfc_queue, rfc_stats_queue, 1))
+    # Start queue status monitor
+    monitor_task = asyncio.create_task(queue_status_monitor(rfc_queue, rfc_stats_queue))
 
     # Wait for the producer to finish
     await producer_task
@@ -97,6 +105,11 @@ async def analyze_rfcs():
     # Wait for all items in the queue to be processed
     await rfc_queue.queue.join()
     consumer_task.cancel()
+    monitor_task.cancel()
+
+    # collect status
+    results: list[tuple[RfcStats, str, Link]] = await collect_results(rfc_stats_queue)
+    return results
 
     print("All items processed, sending sentinels to workers...")
     
