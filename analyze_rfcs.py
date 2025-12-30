@@ -42,6 +42,7 @@ class RfcStatsQueue():
 
 async def calculate_rfc_stats_worker(rfc_queue: RfcSectionQueue, rfc_stats_queue: RfcStatsQueue, worker_id: int) -> None:
     """Worker that continuously processes items from queue until None is received (sentinel)."""
+    calculated_count = 0
     while True:
         print(f"[Worker {worker_id}] Waiting for RFC section...")
         await asyncio.sleep(0)  # Yield control
@@ -59,9 +60,11 @@ async def calculate_rfc_stats_worker(rfc_queue: RfcSectionQueue, rfc_stats_queue
 
         # publish fake status for demo purposes
         stats.user_counts = {"UserA": 3, "UserB": 1}
-        print(f"[Worker {worker_id}] Calculated stats for RFC ID: {rfc_id}, Link: {link}, User counts: {stats.user_counts}")
+        print(f"[Worker {worker_id}] {calculated_count} Calculated stats for RFC ID: {rfc_id}, Link: {link}, User counts: {stats.user_counts}")
+        await asyncio.sleep(0)  # Yield control
         await rfc_stats_queue.put((stats, rfc_id, link))
         rfc_queue.queue.task_done()
+        calculated_count += 1
 
 async def collect_results(rfc_stats_queue: RfcStatsQueue) -> list[tuple[RfcStats, str, Link]]:
     results: list[tuple[RfcStats, str, Link]] = []
@@ -84,7 +87,7 @@ async def analyze_rfcs():
 
     # Start producer as a task
     producer_task = asyncio.create_task(get_rfc_list(rfc_queue))
-    asyncio.create_task(calculate_rfc_stats_worker(rfc_queue, rfc_stats_queue, 1))
+    consumer_task = asyncio.create_task(calculate_rfc_stats_worker(rfc_queue, rfc_stats_queue, 1))
 
     # Wait for the producer to finish
     await producer_task
@@ -93,6 +96,7 @@ async def analyze_rfcs():
     
     # Wait for all items in the queue to be processed
     await rfc_queue.queue.join()
+    consumer_task.cancel()
 
     print("All items processed, sending sentinels to workers...")
     
