@@ -7,7 +7,7 @@ from pywikibot import Link, Page
 
 from asyncio_demo import SENTINEL
 from calculate_statistics import calculate_statistics
-from config import MAX_RFC_PAGES_TO_PROCESS, RESULT_PAGE_TITLE, site
+from config import DRY_RUN, MAX_RFC_PAGES_TO_PROCESS, RESULT_PAGE_TITLE, site
 from find_rfc import RfcStats, get_rfc_list
 from stats_publisher import draft_report, publish_report
 
@@ -114,7 +114,8 @@ async def analyze_rfcs():
     # collect status
     results: list[tuple[RfcStats, str, Link]] = await collect_results(rfc_stats_queue)
     content = draft_report(results)
-    publish_report(content, RESULT_PAGE_TITLE)
+    if not DRY_RUN:
+        publish_report(content, RESULT_PAGE_TITLE)
 
     # test read result page title from config
     

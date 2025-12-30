@@ -43,13 +43,13 @@ def get_links_from_text(page: Page) -> List[Tuple[Page, Link]]:
                 result_set.add(rfc_page)
                 results.append((rfc_page, link))
                 rfc_number += 1
-                if rfc_number >= 20:
+                if rfc_number >= 200:
                     print(f"Reached max RFC pages to process. {len(results)} pages collected.")
                     return results
 
         except Exception as e:
             print(f"Error processing link {m} {link}: {e}")
-            raise e
+
 
     return results
 

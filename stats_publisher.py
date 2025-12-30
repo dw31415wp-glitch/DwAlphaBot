@@ -7,7 +7,7 @@ from config import site
 
 def draft_report(results: list[tuple[RfcStats, str, Link]]) -> str:
     """Draft a report based on the collected RFC stats."""
-    report_lines = ["=== RFC Analysis Report ==="]
+    report_lines = ["=== RFC Analysis Report ===", "Very preliminary code and unaudited results.", ""]
     table_headers = """
         |-
         ! User 

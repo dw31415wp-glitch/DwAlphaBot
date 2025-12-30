@@ -20,8 +20,8 @@ def calculate_statistics(rfc_section: mwparserfromhell.wikicode.Wikicode) -> dic
     unknown_author_nodes = []
     for node in rfc_section.nodes:
         current_node = node
-        print('Node type:', type(node))
-        print('Node content:', str(node)[:100], '...')
+        # print('Node type:', type(node))
+        # print('Node content:', str(node)[:100], '...')
         is_datetime = False
         if type(node) == mwparserfromhell.nodes.Text:
             is_datetime = contains_datetime(str(node))
