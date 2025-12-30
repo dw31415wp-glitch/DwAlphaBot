@@ -6,6 +6,7 @@ from mwparserfromhell.wikicode import Wikicode
 from pywikibot import Link
 
 from asyncio_demo import SENTINEL
+from calculate_statistics import calculate_statistics
 from config import MAX_RFC_PAGES_TO_PROCESS
 from find_rfc import RfcStats, get_rfc_list
 
@@ -59,7 +60,7 @@ async def calculate_rfc_stats_worker(rfc_queue: RfcSectionQueue, rfc_stats_queue
         stats.link = link
 
         # publish fake status for demo purposes
-        stats.user_counts = {"UserA": 3, "UserB": 1}
+        stats.user_counts = calculate_statistics(rfc_section)
         print(f"[Worker {worker_id}] {calculated_count} Calculated stats for RFC ID: {rfc_id}, Link: {link}, User counts: {stats.user_counts}")
         await asyncio.sleep(0)  # Yield control
         await rfc_stats_queue.put((stats, rfc_id, link))

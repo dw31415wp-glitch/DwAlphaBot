@@ -101,7 +101,7 @@ def get_sections_from_page(page: Page, rfc_id: str) -> mwparserfromhell.wikicode
 class RfcStats:
     def __init__(self):
         self.link: Link | None = None
-        self.user_counts: dict[str, int] = {}
+        self.user_counts: dict[str, tuple[int, int]] = {}
 
 def calculate_rfc_stats(rfc_section: mwparserfromhell.wikicode.Wikicode, rfc_id: str, link: Link) -> RfcStats:
     """Calculate stats for a given RFC section."""
