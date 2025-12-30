@@ -11,6 +11,8 @@ from kill_page import check_kill_page
 from event_handler import listen_eventstream
 #from notification_processor import process_pending_notifications
 
+SENTINEL = None
+
 def main():
 
     # get_rfc_list()

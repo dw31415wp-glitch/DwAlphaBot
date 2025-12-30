@@ -5,8 +5,10 @@ import mwparserfromhell
 from mwparserfromhell.wikicode import Wikicode
 from pywikibot import Link
 
+from asyncio_demo import SENTINEL
 from config import MAX_RFC_PAGES_TO_PROCESS
 from find_rfc import RfcStats, get_rfc_list
+
 
 class RfcSectionQueue():
     def __init__(self):
@@ -42,6 +44,7 @@ async def calculate_rfc_stats_worker(rfc_queue: RfcSectionQueue, rfc_stats_queue
     """Worker that continuously processes items from queue until None is received (sentinel)."""
     while True:
         print(f"[Worker {worker_id}] Waiting for RFC section...")
+        await asyncio.sleep(0)  # Yield control
         rfc_section, rfc_id, link = await rfc_queue.get()
         
         # Sentinel value: None signals end of input
@@ -71,36 +74,49 @@ async def collect_results(rfc_stats_queue: RfcStatsQueue) -> list[tuple[RfcStats
             break
     return results
 
+
         
 async def analyze_rfcs():
     # create a queue of RFCs to analyze
+
     rfc_queue = RfcSectionQueue()
     rfc_stats_queue = RfcStatsQueue()
 
     # Start producer as a task
     producer_task = asyncio.create_task(get_rfc_list(rfc_queue))
-    
-    # Start multiple consumer workers (each runs a loop until sentinel)
-    num_workers = 3
-    consumer_tasks = [
-        asyncio.create_task(calculate_rfc_stats_worker(rfc_queue, rfc_stats_queue, i))
-        for i in range(num_workers)
-    ]
-    
-    # Wait for producer to finish, then wait for all queued items to be processed
+    asyncio.create_task(calculate_rfc_stats_worker(rfc_queue, rfc_stats_queue, 1))
+
+    # Wait for the producer to finish
     await producer_task
+
     print("Producer finished, waiting for all items to be processed...")
-    await rfc_queue.queue.join()  # blocks until all task_done() calls match put() calls
     
+    # Wait for all items in the queue to be processed
+    await rfc_queue.queue.join()
+
     print("All items processed, sending sentinels to workers...")
-    for _ in range(num_workers):
-        await rfc_queue.put((None, None, None))
     
-    # Wait for all workers to finish
-    await asyncio.gather(*consumer_tasks)
+    # # Start multiple consumer workers (each runs a loop until sentinel)
+    # num_workers = 3
+    # consumer_tasks = [
+    #     asyncio.create_task(calculate_rfc_stats_worker(rfc_queue, rfc_stats_queue, i))
+    #     for i in range(num_workers)
+    # ]
     
-    results: list[tuple[RfcStats, str, Link]] = await collect_results(rfc_stats_queue)
-    return results
+    # # Wait for producer to finish, then wait for all queued items to be processed
+    # await producer_task
+    # print("Producer finished, waiting for all items to be processed...")
+    # await rfc_queue.queue.join()  # blocks until all task_done() calls match put() calls
+    
+    # print("All items processed, sending sentinels to workers...")
+    # for _ in range(num_workers):
+    #     await rfc_queue.put((None, None, None))
+    
+    # # Wait for all workers to finish
+    # await asyncio.gather(*consumer_tasks)
+    
+    # results: list[tuple[RfcStats, str, Link]] = await collect_results(rfc_stats_queue)
+    # return results
 
 
 

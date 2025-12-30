@@ -2,6 +2,7 @@
 
 import asyncio
 from pywikibot import Link, Page
+from analyze_rfcs import SENTINEL
 from config import LIST_OF_RFC_PAGES, MAX_RFC_PAGES_TO_PROCESS, site
 from typing import List, Tuple
 import mwparserfromhell
@@ -35,14 +36,14 @@ def get_links_from_text(page: Page) -> List[Tuple[Page, Link]]:
         try:
             anchor = m.groupdict().get("label") or ""
             rfc_page = Page(site, link.title, link.namespace)
-            print(f"  (page exists: {rfc_page.title} {rfc_page.exists()})")
+            print(f"  (page exists: {rfc_page.title()} {rfc_page.exists()})")
             if rfc_page.exists():
                 if rfc_page in result_set:
                     continue
                 result_set.add(rfc_page)
                 results.append((rfc_page, link))
                 rfc_number += 1
-                if rfc_number >= MAX_RFC_PAGES_TO_PROCESS:
+                if rfc_number >= 20:
                     print(f"Reached max RFC pages to process. {len(results)} pages collected.")
                     return results
 
@@ -119,18 +120,20 @@ async def get_rfc_list(rfc_queue) -> None:
         print(f"- {page}")
         list_page = Page(site, page)
         if list_page.exists():
-            print(f"  (Page exists)")
+            print(f"{list_page.title}  (Page exists)")
         else:
             print(f"  (Page does not exist)")
         
         # print the initial content of the page
-        print(f"  Content preview: {list_page.text[:50]}...")
+        # print(f"  Content preview: {list_page.text[:50]}...")
 
         results = []
 
         rfc_page_results = get_links_from_text(list_page)
+        print(f"  Found {len(rfc_page_results)} linked RFC pages.")
         for result in rfc_page_results:
             rfc_page, link = result
+            print(f"    - Linked RFC Page: {rfc_page.title()} (Link: {link})")
             target_rfc = link.section or "*******No section linked*****"
             # for section like rfc ABD0AB3
             # extract the id after 'rfc '
@@ -144,6 +147,7 @@ async def get_rfc_list(rfc_queue) -> None:
             rfc_section = get_sections_from_page(rfc_page, rfc_id)
             if rfc_section is not None:
                 print(f"Putting in queue: {rfc_page.title()} (Link: {link})")
+                await asyncio.sleep(0)  # Yield control
                 await rfc_queue.put((rfc_section, rfc_id, link))
                 # Yield control to allow workers to process
                 await asyncio.sleep(0)
@@ -151,6 +155,7 @@ async def get_rfc_list(rfc_queue) -> None:
             else:
                 print(f"      No matching section found for RFC ID: {rfc_id}")
                 continue
+        await rfc_queue.put((SENTINEL, SENTINEL, SENTINEL))  # Sentinel to signal completion
             # collect the list of links on the page
         # collect the list of links on the page
         # links = list_page.linkedPages()
