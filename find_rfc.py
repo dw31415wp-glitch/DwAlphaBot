@@ -25,6 +25,7 @@ def get_links_from_text(page: Page) -> List[Tuple[Page, Link]]:
     import pywikibot
     from pywikibot import textlib
 
+    result_set = set()
     results = []
 
     rfc_number = 0
@@ -34,8 +35,11 @@ def get_links_from_text(page: Page) -> List[Tuple[Page, Link]]:
         try:
             anchor = m.groupdict().get("label") or ""
             rfc_page = Page(site, link.title, link.namespace)
-            print(f"  (exists: {rfc_page.exists()})")
+            print(f"  (page exists: {rfc_page.title} {rfc_page.exists()})")
             if rfc_page.exists():
+                if rfc_page in result_set:
+                    continue
+                result_set.add(rfc_page)
                 results.append((rfc_page, link))
                 rfc_number += 1
                 if rfc_number >= MAX_RFC_PAGES_TO_PROCESS:
@@ -109,7 +113,7 @@ def calculate_rfc_stats(rfc_section: mwparserfromhell.wikicode.Wikicode, rfc_id:
 
     return stats
 
-async def get_rfc_list(rfc_queue: asyncio.Queue) -> None:
+async def get_rfc_list(rfc_queue) -> None:
     print("RFC Pages to monitor:")
     for page in LIST_OF_RFC_PAGES:
         print(f"- {page}")
@@ -141,6 +145,8 @@ async def get_rfc_list(rfc_queue: asyncio.Queue) -> None:
             if rfc_section is not None:
                 print(f"Putting in queue: {rfc_page.title()} (Link: {link})")
                 await rfc_queue.put((rfc_section, rfc_id, link))
+                # Yield control to allow workers to process
+                await asyncio.sleep(0)
                 # results.append(calculate_rfc_stats(rfc_section, rfc_id, link))
             else:
                 print(f"      No matching section found for RFC ID: {rfc_id}")
