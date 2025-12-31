@@ -12,7 +12,7 @@ LIST_OF_RFC_PAGES = [
     'Wikipedia:Requests for comment/Politics, government, and law'
 ]
 MAX_RFC_PAGES_TO_PROCESS = 5
-
+JOB_TO_RUN = 'examine_history'  # Options: 'analyze_rfcs', 'examine_history'
 
 
 site = pywikibot.Site('en', 'wikipedia')

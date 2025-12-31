@@ -5,10 +5,12 @@ from threading import Thread
 
 from pywikibot import Page
 import analyze_rfcs
-from config import DRY_RUN, site, LIST_OF_RFC_PAGES
+from config import DRY_RUN, site, LIST_OF_RFC_PAGES, JOB_TO_RUN
 from find_rfc import get_rfc_list
 from kill_page import check_kill_page
 from event_handler import listen_eventstream
+from examine_history import examine_history
+#from examine_history import examine_history
 #from notification_processor import process_pending_notifications
 
 SENTINEL = None
@@ -17,7 +19,11 @@ def main():
 
     # get_rfc_list()
     
-    asyncio.run(analyze_rfcs.analyze_rfcs())
+    if JOB_TO_RUN == 'analyze_rfcs':
+        asyncio.run(analyze_rfcs.analyze_rfcs())
+
+    if JOB_TO_RUN == 'examine_history':
+        examine_history()
 
     # exit for now
     return
