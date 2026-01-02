@@ -3,3 +3,4 @@ mwparserfromhell
 requests
 python-dateutil
 asyncio
+beautifulsoup4>=4.14.2
