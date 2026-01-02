@@ -1,6 +1,6 @@
 
 import datetime
-from config import LIST_OF_RFC_PAGES, RAW_PAGES_LIST, YEARS_TO_PROCESS, site
+from config import LIST_OF_RFC_PAGES, RAW_PAGES_LIST, RFC_BOT_USERNAME, YEARS_TO_PROCESS, site
 from pywikibot import Page
 from pywikibot.page import Revision
 from pywikibot.site import APISite
@@ -10,17 +10,18 @@ import shelve
 
 
 class RevisionRun:
-    def __init__(self, year, page_title, timestamp = datetime.datetime.now().timestamp(), comment = ''):
+    def __init__(self, year, page_title, timestamp = datetime.datetime.now().timestamp(), comment = '', bot_username = 'Legobot'):
         self.type = 'r-1'
         self.year = year
         self.page_title = page_title
         self.timestamp = timestamp
         self.comment = comment
+        self.bot_username = bot_username
         self.revisions_examined = 0
         self.revisions_with_errors = 0
 
     def get_key(self):
-        return f'{self.type}-{self.year}-{self.page_title}'
+        return f'RevisionRunStart-{self.type}-{self.year}-{self.page_title}'
     
     def increment_revisions_examined(self):
         self.revisions_examined += 1
@@ -29,7 +30,7 @@ class RevisionRun:
         self.revisions_with_errors += 1
     
     def get_complete_stats(self) -> tuple[str, dict]:
-        return (f"{self.type}-{self.year}-{self.page_title}-stats", {
+        return (f"RevisionRunStats-{self.type}-{self.year}-{self.page_title}", {
             'revisions_examined': self.revisions_examined,
             'seconds_taken': datetime.datetime.now().timestamp() - self.timestamp,
             'revisions_with_errors': self.revisions_with_errors,
@@ -48,7 +49,8 @@ def examine_history():
     for year in YEARS_TO_PROCESS:
         for raw_page_title in RAW_PAGES_LIST:
             page_title = f"Wikipedia:{raw_page_title}"
-            run = RevisionRun(year=year, page_title=page_title, comment='Examining history for deletions')    
+            bot_username = RFC_BOT_USERNAME
+            run = RevisionRun(year=year, page_title=page_title, comment='Examining history for deletions', bot_username=bot_username)    
             db[run.get_key()] = run
             
             try:
@@ -64,7 +66,7 @@ def examine_history():
                 # Loads revisions into the page object
                 starttime: Timestamp = Timestamp(year, 1, 1, 0, 0, 0)
                 endtime: Timestamp = Timestamp(year + 1, 1, 1, 0, 0, 0)
-                history = site.loadrevisions(page=rfc_page, user='Legobot', starttime=starttime, endtime=endtime, rvdir=True)
+                history = site.loadrevisions(page=rfc_page, user=bot_username, starttime=starttime, endtime=endtime, rvdir=True)
 
             # TODO: Do I need to access _revisions or is there a better way?
 
@@ -74,17 +76,17 @@ def examine_history():
             # * user: Legobot
             # * comment: Added: [[Talk:Denis Kapustin (militant)]].
             for entry in (rfc_page._revisions or {}).values():
-                save_revision(db, run, entry)
+                save_revision(db, run, entry, page_title=page_title, year=year)
             stats_key, stats_value = run.get_complete_stats()
             db[stats_key] = stats_value
             print(f"Completed examining history. Stats: {stats_value}")
-            db.close()
+            db.sync()
+    db.close()
 
-def save_revision(db: shelve.Shelf[any], run: RevisionRun, entry: Revision):
+def save_revision(db: shelve.Shelf[any], run: RevisionRun, entry: Revision, page_title: str = '', year: int = 0):
     try:
-        revision_key = f"revision-{entry.revid}"
-        entry['processed'] = False
-        db[revision_key] = entry
+        processed_key = f"RevisionRunEntryId-{entry.revid}"
+        db[processed_key] = False
         db.sync()
         diff_table = site.compare(entry.get('parentid'), entry.get('revid'),'table')
         revision_details = {
@@ -93,12 +95,14 @@ def save_revision(db: shelve.Shelf[any], run: RevisionRun, entry: Revision):
             'timestamp': entry.timestamp,
             'user': entry.user,
             'comment': entry.comment,
-            'diff_table': diff_table
+            'diff_table': diff_table,
+            'page_title': page_title,
+            'year': year
         }
-        db[f"revision-details-{entry.revid}"] = revision_details
-        entry['processed'] = True
-        db[revision_key] = entry
+        db[f"RevisionRunEntryDetails-{entry.revid}"] = revision_details
+        db[processed_key] = True
         run.increment_revisions_examined()
+        print(f"Saved page {page_title} in year {year} revision {entry.revid}")
 
     # catch any exception
     except Exception as e:
@@ -143,3 +147,11 @@ def print_removed_entries(entry, print_keys):
 
     # TODO: How do I get the diff of what was added/removed in that revision?
     # Maybe site.compare(revid1, revid2) or something like that?
+
+def list_run_stats():
+    db = shelve.open('rfc.db', writeback=False)
+    for key in db.keys():
+        if key.startswith('RevisionRunStats-'):
+            stats = db[key]
+            print(f"Stats for {key}: {stats}")
+    db.close()

@@ -31,6 +31,8 @@ LIST_OF_RFC_PAGES = [
     'Wikipedia:Requests for comment/Politics, government, and law'
 ]
 
+RFC_BOT_USERNAME = 'Legobot'
+
 YEARS_TO_PROCESS = [2022, 2023]
 MAX_RFC_PAGES_TO_PROCESS = 5
 JOB_TO_RUN = 'examine_history'  # Options: 'analyze_rfcs', 'examine_history'
