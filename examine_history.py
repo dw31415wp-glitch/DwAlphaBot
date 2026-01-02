@@ -151,6 +151,7 @@ def print_removed_entries(entry, print_keys):
 def list_run_stats():
     db = shelve.open('rfc.db', writeback=False)
     for key in db.keys():
+        value = db[key]
         if key.startswith('RevisionRunStats-'):
             stats = db[key]
             print(f"Stats for {key}: {stats}")

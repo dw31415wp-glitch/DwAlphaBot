@@ -4,4 +4,4 @@ user-password.cfg
 apicache/
 __pycache__/
 throttle.ctrl
-*.db
+*.db*
