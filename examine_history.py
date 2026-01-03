@@ -8,7 +8,7 @@ from pywikibot.diff import html_comparator
 from pywikibot.time  import Timestamp
 import shelve
 
-from handle_revision import handle_revision
+from handle_revision import handle_revision, print_removed_entries
 
 
 class RevisionRun:
