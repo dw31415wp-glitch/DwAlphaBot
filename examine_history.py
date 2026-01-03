@@ -8,6 +8,8 @@ from pywikibot.diff import html_comparator
 from pywikibot.time  import Timestamp
 import shelve
 
+from handle_revision import handle_revision
+
 
 class RevisionRun:
     def __init__(self, year, page_title, timestamp = datetime.datetime.now().timestamp(), comment = '', bot_username = 'Legobot'):
@@ -21,7 +23,7 @@ class RevisionRun:
         self.revisions_with_errors = 0
 
     def get_key(self):
-        return f'RevisionRunStart-{self.type}-{self.year}-{self.page_title}'
+        return f'RevisionRunStart-{self.type}-{self.year}-{self.page_title}-{self.bot_username}-{self.timestamp}'
     
     def increment_revisions_examined(self):
         self.revisions_examined += 1
@@ -30,12 +32,13 @@ class RevisionRun:
         self.revisions_with_errors += 1
     
     def get_complete_stats(self) -> tuple[str, dict]:
-        return (f"RevisionRunStats-{self.type}-{self.year}-{self.page_title}", {
+        return (f"RevisionRunStats-{self.type}-{self.year}-{self.page_title}-{self.bot_username}-{self.timestamp}", {
             'revisions_examined': self.revisions_examined,
             'seconds_taken': datetime.datetime.now().timestamp() - self.timestamp,
             'revisions_with_errors': self.revisions_with_errors,
             'type': self.type,
             'year': self.year,
+            'bot_username': self.bot_username,
             'page_title': self.page_title,
             'timestamp': self.timestamp,
             'comment': self.comment
@@ -97,6 +100,7 @@ def save_revision(db: shelve.Shelf[any], run: RevisionRun, entry: Revision, page
             'comment': entry.comment,
             'diff_table': diff_table,
             'page_title': page_title,
+            'bot_username': run.bot_username,
             'year': year
         }
         db[f"RevisionRunEntryDetails-{entry.revid}"] = revision_details
@@ -118,41 +122,37 @@ def handle_entry(entry):
     if 'removed' in entry.get('comment', '').lower():
         print_removed_entries(entry, print_keys)
 
-def print_removed_entries(entry, print_keys):
-    comment = entry.get('comment')
-            # Delete everything before "[["
-    if "[[" in comment:
-        comment = comment[comment.index("[["):]
-            # remove any trailing period
-    if comment.endswith('.'):
-        comment = comment[:-1]
-
-    print(f'== {comment} ==')
-    revision_comment = '<!-- dwalphabot=1,'
-    for key in print_keys:
-                #print(f"* {key}: {entry.get(key)}")
-        revision_comment += f"{key}={str(entry.get(key))},"
-    revision_comment += ' -->\n'
-    print(revision_comment)
-    diff_table = site.compare(entry.get('parentid'), entry.get('revid'),'table') # works better than 'inline'
-    diff_compare = html_comparator(diff_table)
-
-    deleted_content = diff_compare['deleted-context'] or []
-    deleted_lines = '\n'.join(deleted_content)
-
-    print(deleted_lines)
-    print("")
-
-
 
     # TODO: How do I get the diff of what was added/removed in that revision?
     # Maybe site.compare(revid1, revid2) or something like that?
 
 def list_run_stats():
     db = shelve.open('rfc.db', writeback=False)
+    year_counts = {}
     for key in db.keys():
         value = db[key]
         if key.startswith('RevisionRunStats-'):
             stats = db[key]
+            year = stats.get('year')
+            if year not in year_counts:
+                year_counts[year] = 0
+            year_counts[year] += stats.get('revisions_examined', 0)
             print(f"Stats for {key}: {stats}")
+    print("Summary of revisions examined per year:")
+    for year, count in year_counts.items():
+        print(f"Year {year}: {count} revisions examined")
+    db.close()
+
+def list_entry_details():
+    db = shelve.open('rfc.db', writeback=False)
+    year_counts = {}
+    for key in db.keys():
+        value = db[key]
+        if key.startswith('RevisionRunEntryDetails-'):
+            details = db[key]
+            handle_revision(details)
+            print(f"details for {key}")
+    print("Summary of revisions examined per year:")
+    for year, count in year_counts.items():
+        print(f"Year {year}: {count} revisions examined")
     db.close()
