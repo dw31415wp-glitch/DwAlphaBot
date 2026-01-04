@@ -5,3 +5,4 @@ apicache/
 __pycache__/
 throttle.ctrl
 *.db*
+logs/

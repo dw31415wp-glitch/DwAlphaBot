@@ -8,6 +8,34 @@ from config import site
 
 from pywikibot.diff import html_comparator
 
+def file_appender(entry: dict, rfcs: dict[str, dict]):
+    """
+    Append text to a file.
+
+    Args:
+        filename (str): The name of the file to append to.
+        text (str): The text to append.
+    """
+    filename = f"./logs/removed_rfcs_{entry.get('year')}.txt"
+    error_filename = f"./logs/removed_rfcs_errors_{entry.get('year')}.txt"
+
+    # if rfcs is empty, log to error file
+    if not rfcs:
+        with open(error_filename, 'a', encoding='utf-8') as f:
+            f.write(f"== No RFCs found for revision {entry.get('revid')} ==\n")
+            f.write(f"Entry details: {entry}\n\n")
+        return
+    
+    if rfcs:
+        with open(filename, 'a', encoding='utf-8') as f:
+            f.write(f"== Removed RFC Entries for revision {entry.get('revid')} ==\n")
+            for rfc in rfcs.values():
+                f.write(f"Link: {rfc['link']}\n")
+                f.write(f"User: {rfc.get('user')}\n")
+                f.write(f"Date: {rfc.get('datetime')}\n")
+                f.write(f"RFC Text:\n{rfc.get('rfc_text')}\n\n")
+
+
 def extract_user_and_date(rfc_text: str) -> tuple[str, Timestamp]:
     """
     Given a block of text from an RFC entry, attempt to find the user who made the entry and the date.
@@ -81,11 +109,27 @@ def print_removed_entries(entry, print_keys, diff_table=None):
         else:
             rfc_text = deleted_lines[start:]
         rfc_texts.append(rfc_text)
-
-    print(f'== Removed RFC Entries ==')
-    for rfc_text in rfc_texts:
+        # associate rfc_text with corresponding rfc in rfcs
+        link = rfc_links[i]
+        rfcs[link]['rfc_text'] = rfc_text
         user, rfc_datetime = extract_user_and_date(rfc_text)
-        print(f"RFC Text:\n{rfc_text}\nUser: {user}, Date: {rfc_datetime}\n")
+        rfcs[link]['user'] = user
+        rfcs[link]['datetime'] = rfc_datetime
+
+    # find case where no rfc_links found
+    # if not rfc_links:
+    #     print("No RFC links found in deleted lines.")
+    #     pass
+
+    # find rfc_link but no rfc_texts
+
+
+    file_appender(entry, rfcs)
+
+    # print(f'== Removed RFC Entries ==')
+    # for rfc_text in rfc_texts:
+    #     user, rfc_datetime = extract_user_and_date(rfc_text)
+    #     print(f"RFC Text:\n{rfc_text}\nUser: {user}, Date: {rfc_datetime}\n")
 
 
 
