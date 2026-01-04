@@ -8,6 +8,28 @@ from config import site
 
 from pywikibot.diff import html_comparator
 
+page_shortcuts = {}
+
+printed_links = {}
+
+def find_shortcut(page_title: str) -> str:
+    """
+    Given a page title, find the shortcut key from RAW_PAGES_DICT.
+
+    Args:
+        page_title (str): The full page title.
+    Returns:
+        str: The shortcut key if found, else full page title.
+    """
+    if not page_shortcuts:
+        from config import RAW_PAGES_DICT
+        for shortcut, title in RAW_PAGES_DICT.items():
+            full_title = f"Wikipedia:{title}"
+            page_shortcuts[full_title] = shortcut
+
+    return page_shortcuts.get(page_title, page_title)    
+
+
 def file_appender(entry: dict, rfcs: dict[str, dict]):
     """
     Append text to a file.
@@ -16,6 +38,12 @@ def file_appender(entry: dict, rfcs: dict[str, dict]):
         filename (str): The name of the file to append to.
         text (str): The text to append.
     """
+
+    # find shortcut for page title
+    entry_page_title = entry.get('page_title', '')
+    shortcut = find_shortcut(entry_page_title)
+
+
     filename = f"./logs/removed_rfcs_{entry.get('year')}.txt"
     error_filename = f"./logs/removed_rfcs_errors_{entry.get('year')}.txt"
 
@@ -26,14 +54,31 @@ def file_appender(entry: dict, rfcs: dict[str, dict]):
             f.write(f"Entry details: {entry}\n\n")
         return
     
+
     if rfcs:
         with open(filename, 'a', encoding='utf-8') as f:
-            f.write(f"== Removed RFC Entries for revision {entry.get('revid')} ==\n")
+            timestamp: Timestamp = entry.get('timestamp')
+            if timestamp:
+                timestamp_str = f"on {timestamp.isoformat()}"
+            else:
+                timestamp_str = ''
+
+            f.write(f"== Removed RFC from {shortcut} {entry.get('revid')} {timestamp_str}  ==\n")
             for rfc in rfcs.values():
-                f.write(f"Link: {rfc['link']}\n")
-                f.write(f"User: {rfc.get('user')}\n")
-                f.write(f"Date: {rfc.get('datetime')}\n")
-                f.write(f"RFC Text:\n{rfc.get('rfc_text')}\n\n")
+                if rfc.get('link'):
+                    f.write(f"Link: {rfc['link']}\n")
+                # only print the following if not seen before in printed_links
+                if rfc.get('link') not in printed_links:
+                    printed_links[rfc.get('link')] = shortcut
+                    if rfc.get('user'):
+                        f.write(f"User: {rfc.get('user')}\n")
+                    if rfc.get('datetime'):
+                        f.write(f"Date: {rfc.get('datetime')}\n")
+                    if rfc.get('rfc_text'):
+                        f.write(f"RFC Text:\n{rfc.get('rfc_text')}\n\n")
+                # esle print previous section only
+                else:
+                    f.write(f"See above: {printed_links[rfc.get('link')]}\n\n")
 
 
 def extract_user_and_date(rfc_text: str) -> tuple[str, Timestamp]:
@@ -111,10 +156,18 @@ def print_removed_entries(entry, print_keys, diff_table=None):
         rfc_texts.append(rfc_text)
         # associate rfc_text with corresponding rfc in rfcs
         link = rfc_links[i]
-        rfcs[link]['rfc_text'] = rfc_text
         user, rfc_datetime = extract_user_and_date(rfc_text)
-        rfcs[link]['user'] = user
-        rfcs[link]['datetime'] = rfc_datetime
+        if user:
+            rfcs[link]['user'] = user
+        if rfc_datetime:
+            rfcs[link]['datetime'] = rfc_datetime
+        # remove link from rfc_text to avoid repetition in output
+        rfc_text = rfc_text.replace(link, '', 1)
+        # trim - Trim ''' from start and end of rfc_text
+        rfc_text = rfc_text.strip().strip("'''")
+        rfcs[link]['rfc_text'] = rfc_text
+        
+
 
     # find case where no rfc_links found
     # if not rfc_links:
@@ -245,6 +298,7 @@ def handle_revision(entry: dict):
 
 if __name__ == "__main__":
     #entry = {'revid': 1063078964, 'parentid': 1062709000, 'timestamp': Timestamp(2022, 1, 1, 3, 1, 22), 'user': 'Legobot', 'comment': 'Removed: [[Wikipedia talk:Notability (organizations and companies)]].', 'diff_table': '<tr>\n  <td colspan="2" class="diff-lineno">Line 55:</td>\n  <td colspan="2" class="diff-lineno">Line 55:</td>\n</tr>\n<tr>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-deleted"><div>(Editors {{u|Binksternet}}, {{u|Black Kite}}, {{u|FormalDude}} expressed opinions above). &lt;s&gt;Also, @ {{u|CAMERAwMUSTACHE}}, {{u|ChicagoWikiEditor}}, {{u|FMSky}} if they have time for suggestions, would be welcome&lt;/s&gt;.</div></td>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-added"><div>(Editors {{u|Binksternet}}, {{u|Black Kite}}, {{u|FormalDude}} expressed opinions above). &lt;s&gt;Also, @ {{u|CAMERAwMUSTACHE}}, {{u|ChicagoWikiEditor}}, {{u|FMSky}} if they have time for suggestions, would be welcome&lt;/s&gt;.</div></td>\n</tr>\n<tr>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-deleted"><div>[[User:Cornerstonepicker|Cornerstonepicker]] ([[User talk:Cornerstonepicker|talk]]) 02:13, 3 December 2021 (UTC)}}</div></td>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-added"><div>[[User:Cornerstonepicker|Cornerstonepicker]] ([[User talk:Cornerstonepicker|talk]]) 02:13, 3 December 2021 (UTC)}}</div></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>\'\'\'[[Wikipedia talk:Notability (organizations and companies)#rfc_4ED494F|Wikipedia talk:Notability (organizations and companies)]]\'\'\'</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>{{rfcquote|text=</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>Should the line {{tq|The scope of this guideline covers all groups of people organized together for a purpose with the exception of non-profit educational institutions, religions or sects, and sports teams.}} be altered to state:</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>*\'\'\'A\'\'\': That esports are within the scope of this notability guideline</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>*\'\'\'B\'\'\': That esports are not within the scope of this notability guideline</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>*\'\'\'C\'\'\': No change</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><br /></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>This RfC is proposed in the context of the no consensus [[Wikipedia:Articles for deletion/Stalwart Esports (2nd nomination)|Stalwart Esports AfD]] where the closer opined that there was a "real need" for guidance on which guideline or policy was controlling.</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>02:32, 2 December 2021 (UTC)}}</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-deleted"><div>{{RFC list footer|bio|hide_instructions={{{hide_instructions}}} }}</div></td>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-added"><div>{{RFC list footer|bio|hide_instructions={{{hide_instructions}}} }}</div></td>\n</tr>\n', 'page_title': 'Wikipedia:Requests_for_comment/Biographies', 'year': 2022}
+    user_exception_entry = {'revid': 576752293, 'parentid': 576088456, 'timestamp': Timestamp(2013, 10, 11, 18, 1, 40), 'user': 'Legobot', 'comment': 'Removed: [[Wikipedia:Requests for comment/Template editor user right]].', 'diff_table': '<tr>\n  <td colspan="2" class="diff-lineno">Line 195:</td>\n  <td colspan="2" class="di...{hide_instructions}}} }}</div></td>\n</tr>\n', 'page_title': 'Wikipedia:Requests_for_comment/Wikipedia_technical_issues_and_templates', 'year': 2013}
     entry = {'revid': 1000204955, 'parentid': 1000195870, 'timestamp': Timestamp(2021, 1, 14, 3, 1, 30), 'user': 'Legobot', 'comment': 'Removed: [[Talk:Arthur Laffer]] [[Talk:Ted Cruz]] [[Talk:Emily VanDerWerff]].', 'diff_table': '<tr>\n  <td colspan="2" class="diff-lineno">Line 21:</td>\n  <td colspan="2" class="diff-lineno">Line 21:</td>\n</tr>\n<tr>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-deleted"><div>{{rfcquote|text=</div></td>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-added"><div>{{rfcquote|text=</div></td>\n</tr>\n<tr>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-deleted"><div>Here we go again. [[User:Artixxxl|Artixxxl]] is adding to the list people who are not Ukrainian citizens, who were not born in Ukraine (or area which is now Ukraine) and never lived there, on the nasis that they have Ukrainian ancestry (one example of [[Alexei Navalny]] spending summers with his grandparents - which I personally find completely ridiculous; in this way everybody who was on holidays in Crimea between 1954 and 2014 - or even possibly after 2014 - can be added to the list) and this would make the list potentially of infinite size - even I would qualify for inclison. Therefore we need to define the scope very clearly. Below I list categories of notable individuals, please argue whether these need to be included.--[[User:Ymblanter|Ymblanter]] ([[User talk:Ymblanter|talk]]) 10:06, 1 January 2021 (UTC)}}</div></td>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-added"><div>Here we go again. [[User:Artixxxl|Artixxxl]] is adding to the list people who are not Ukrainian citizens, who were not born in Ukraine (or area which is now Ukraine) and never lived there, on the nasis that they have Ukrainian ancestry (one example of [[Alexei Navalny]] spending summers with his grandparents - which I personally find completely ridiculous; in this way everybody who was on holidays in Crimea between 1954 and 2014 - or even possibly after 2014 - can be added to the list) and this would make the list potentially of infinite size - even I would qualify for inclison. Therefore we need to define the scope very clearly. Below I list categories of notable individuals, please argue whether these need to be included.--[[User:Ymblanter|Ymblanter]] ([[User talk:Ymblanter|talk]]) 10:06, 1 January 2021 (UTC)}}</div></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>\'\'\'[[Talk:Ted Cruz#rfc_76C58B0|Talk:Ted Cruz]]\'\'\'</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>{{rfcquote|text=</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>Should the lead section conclude with one sentence about his family (being that two of his family members meet the Wikipedia criteria of notability itself by having articles), just like most large biographies of living persons typically do, in a neutral manner and without giving an inference of perceived "inherited notability" and / or granting notability to the subject? Or is it really against a policy and does the one sentence make the article about them? I’m here to get consensus as I allegedly didn’t do that by including something I assumed to be a non-issue in its ubiquity. And that I’ve seen nothing in the Manual of Style explicitly against it. [[User:Trillfendi|Trillfendi]] ([[User talk:Trillfendi|talk]]) 22:23, 29 December 2020 (UTC)}}</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>\'\'\'[[Talk:Emily VanDerWerff#rfc_C9A3824|Talk:Emily VanDerWerff]]\'\'\'</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>{{rfcquote|text=</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>Should the article include the subject\'s previous name in the opening paragraph? This has been omitted citing [[WP:DEADNAME]] because a previous version of this article was deleted. Does the fact that a previous version was deleted prove that the subject was not notable at the time? If so, does this proof satisfy [[WP:DEADNAME]], specifically that {{tq|the birth name should be included in the lead sentence only if the person was notable under that name}}?</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><br /></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>Previous discussion of this question starts [https://en.wikipedia.org/wiki/Talk:Emily_VanDerWerff#Birth_name above]. [https://en.wikipedia.org/w/index.php?title=Emily_VanDerWerff&amp;oldid=996643305 Here] is a revision showing how it might appear. \'\'\'[[User:Careless hx|carelesshx]]\'\'\' &lt;sub&gt;[[User talk:Careless hx|talk]]&lt;/sub&gt; 16:04, 28 December 2020 (UTC)}}</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-deleted"><div>\'\'\'[[Talk:Donald Gary Young#rfc_F9665B6|Talk:Donald Gary Young]]\'\'\'</div></td>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-added"><div>\'\'\'[[Talk:Donald Gary Young#rfc_F9665B6|Talk:Donald Gary Young]]\'\'\'</div></td>\n</tr>\n<tr>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-deleted"><div>{{rfcquote|text=</div></td>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-added"><div>{{rfcquote|text=</div></td>\n</tr>\n<tr>\n  <td colspan="2" class="diff-lineno">Line 44:</td>\n  <td colspan="2" class="diff-lineno">Line 36:</td>\n</tr>\n<tr>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-deleted"><div>{{rfcquote|text=</div></td>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-added"><div>{{rfcquote|text=</div></td>\n</tr>\n<tr>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-deleted"><div>Should the lead note that Black wrote a "flattering biography of Donald Trump" and that he was pardoned \'\'by President Trump\'\'? Currently, the lead says Black was pardoned but it doesn\'t say by whom, and it doesn\'t include the context that Black had just prior to the pardon released a hagiography of Trump. (Original timestamp: 12:55, 13 May 2020) [[User:Snooganssnoogans|Snooganssnoogans]] ([[User talk:Snooganssnoogans|talk]]) 05:35, 24 December 2020 (UTC)}}</div></td>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-added"><div>Should the lead note that Black wrote a "flattering biography of Donald Trump" and that he was pardoned \'\'by President Trump\'\'? Currently, the lead says Black was pardoned but it doesn\'t say by whom, and it doesn\'t include the context that Black had just prior to the pardon released a hagiography of Trump. (Original timestamp: 12:55, 13 May 2020) [[User:Snooganssnoogans|Snooganssnoogans]] ([[User talk:Snooganssnoogans|talk]]) 05:35, 24 December 2020 (UTC)}}</div></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>\'\'\'[[Talk:Arthur Laffer#rfc_1AAC44C|Talk:Arthur Laffer]]\'\'\'</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>{{rfcquote|text=</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>Should we add a paragraph to the article that mentions: (i) that Laffer is advising the trump administration on dealing with the coronavirus, and (ii) the policies that Laffer has advocated for in dealing with the coronavirus pandemic? [[User:Snooganssnoogans|Snooganssnoogans]] ([[User talk:Snooganssnoogans|talk]]) 05:33, 24 December 2020 (UTC)}}</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-deleted"><div>\'\'\'[[Talk:Arthur Laffer#rfc_6BDAC22|Talk:Arthur Laffer]]\'\'\'</div></td>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-added"><div>\'\'\'[[Talk:Arthur Laffer#rfc_6BDAC22|Talk:Arthur Laffer]]\'\'\'</div></td>\n</tr>\n<tr>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-deleted"><div>{{rfcquote|text=</div></td>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-added"><div>{{rfcquote|text=</div></td>\n</tr>\n', 'page_title': 'Wikipedia:Requests_for_comment/Biographies', 'year': 2021}
     print(f"Handling revision: {entry}")
     handle_revision(entry)

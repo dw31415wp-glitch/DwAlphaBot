@@ -27,6 +27,45 @@ RAW_PAGES_LIST = [
   "Requests_for_comment/User_names"
 ]
 
+
+# Article topics (View all)
+# Biographies	{{rfc|bio}}
+# Economy, trade, and companies	{{rfc|econ}}
+# History and geography	{{rfc|hist}}
+# Language and linguistics	{{rfc|lang}}
+# Maths, science, and technology	{{rfc|sci}}
+# Media, the arts, and architecture	{{rfc|media}}
+# Politics, government, and law	{{rfc|pol}}
+# Religion and philosophy	{{rfc|reli}}
+# Society, sports, and culture	{{rfc|soc}}
+# Project-wide topics (View all)
+# Wikipedia style and naming	{{rfc|style}}
+# Wikipedia policies and guidelines	{{rfc|policy}}
+# WikiProjects and collaborations	{{rfc|proj}}
+# Wikipedia technical issues and templates	{{rfc|tech}}
+# Wikipedia proposals	{{rfc|prop}}
+# Unsorted
+# Unsorted RfCs	{{rfc}}
+
+RAW_PAGES_DICT = {
+    'BIO': 'Requests_for_comment/Biographies',
+    'ECON': 'Requests_for_comment/Economy,_trade,_and_companies',
+    'HIST': 'Requests_for_comment/History_and_geography',
+    'LANG': 'Requests_for_comment/Language_and_linguistics',
+    'SCI': 'Requests_for_comment/Maths,_science,_and_technology',
+    'MEDIA': 'Requests_for_comment/Media,_the_arts,_and_architecture',
+    'POL': 'Requests_for_comment/Politics,_government,_and_law',
+    'RELI': 'Requests_for_comment/Religion_and_philosophy',
+    'SOC': 'Requests_for_comment/Society,_sports,_and_culture',
+    'STYLE': 'Requests_for_comment/Wikipedia_style_and_naming',
+    'POLICY': 'Requests_for_comment/Wikipedia_policies_and_guidelines',
+    'PROJ': 'Requests_for_comment/WikiProjects_and_collaborations',
+    'TECH': 'Requests_for_comment/Wikipedia_technical_issues_and_templates',
+    'PROP': 'Requests_for_comment/Wikipedia_proposals',
+    'UNSORTED': 'Requests_for_comment/Unsorted',
+    'USERNAMES': 'Requests_for_comment/User_names'
+}
+
 LIST_OF_RFC_PAGES = [
     'Wikipedia:Requests for comment/Politics, government, and law'
 ]
