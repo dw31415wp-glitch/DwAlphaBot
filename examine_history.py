@@ -206,7 +206,6 @@ def upload_changes_to_wiki(file_names: dict):
             page.save(summary=f"Updating RFC history for {year}", botflag=True)
             print(f"Uploaded changes to wiki page {page_title}")
             # stop at one for testing
-            break
         except Exception as e:
             print(f"Error uploading changes to wiki page {page_title}: {e}")
 

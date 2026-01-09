@@ -110,7 +110,8 @@ def file_appender(entry: dict, rfcs: dict[str, dict], rfc_id_dict: dict[str, dic
     year = entry.get('year')
     filename = f"./logs/removed_rfcs_{year}.txt"
     error_filename = f"./logs/removed_rfcs_errors_{year}.txt"
-    file_names[year] = {filename, error_filename}
+    if file_names is not None:
+        file_names[year] = (filename, error_filename)
 
     # if rfcs is empty, log to error file
     if not rfcs:
@@ -255,7 +256,7 @@ def print_removed_entries(entry, print_keys, diff_table=None, rfc_id_dict=None, 
     # find rfc_link but no rfc_texts
 
 
-    file_appender(entry, rfcs, rfc_id_dict)
+    file_appender(entry, rfcs, rfc_id_dict, file_names)
 
     # print(f'== Removed RFC Entries ==')
     # for rfc_text in rfc_texts:
