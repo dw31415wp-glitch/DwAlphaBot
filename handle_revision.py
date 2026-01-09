@@ -1,6 +1,7 @@
 
 from datetime import datetime
 from pydoc import text
+import re
 import mwparserfromhell
 from pywikibot.time  import Timestamp
 from pywikibot import textlib
@@ -11,6 +12,8 @@ from pywikibot.diff import html_comparator
 page_shortcuts = {}
 
 printed_links = {}
+
+
 
 def find_shortcut(page_title: str) -> str:
     """
@@ -29,8 +32,68 @@ def find_shortcut(page_title: str) -> str:
 
     return page_shortcuts.get(page_title, page_title)    
 
+comment_keywords = ['added','removed', 'deleted', 'maintenance']
 
-def file_appender(entry: dict, rfcs: dict[str, dict]):
+def extract_revisions(diff_entries: list[dict]) -> list[dict]:
+    """
+    Given a list of diff entries, extract revision information.
+
+    Args:
+        diff_entries (list[dict]): List of diff entries.
+    Returns:
+        list[dict]: List of revisions extracted.
+    """
+    revisions_by_shortcut = {}
+    revisions = []
+    for entry in diff_entries:
+        revision_id = entry.get('revid')
+        page_title = entry.get('page_title')
+        comment = entry.get('comment', '').lower()
+        # extract key words added, maintenance, removed from comment    
+        keywords_found = [kw for kw in comment_keywords if kw in comment]
+        revision = {
+            'revid': revision_id,
+            'page_title': page_title,
+            'comment_kw': ", ".join(keywords_found),
+            'shortcut': find_shortcut(page_title),
+            'timestamp': entry.get('timestamp')
+        }
+        if page_title and revision_id:
+            label = f"{find_shortcut(page_title)} {revision_id}"
+            diff_template = "{{" + f"Diff|{page_title}|prev|{revision_id}|{label}" + "}}"
+            revision['diff_template'] = diff_template
+        revisions.append(revision)
+        shortcut = revision['shortcut']
+        if shortcut not in revisions_by_shortcut:
+            revisions_by_shortcut[shortcut] = []
+        revisions_by_shortcut[shortcut].append(revision)
+
+    # sort each shortcut's revisions by timestamp ascending
+    for revs in revisions_by_shortcut.values():
+        revs.sort(key=lambda x: x.get('timestamp'))
+
+    # find first and last revision by shortcut
+    for revs in revisions_by_shortcut.values():
+        if revs:
+            first_rev = revs[0]
+            last_rev = revs[-1]
+            
+    first_and_last_revs = []
+
+    for revs in revisions_by_shortcut.values():
+        if revs:
+            first_rev = revs[0]
+            last_rev = revs[-1]
+            first_and_last_revs.append(first_rev)
+            if last_rev != first_rev:
+                first_and_last_revs.append(last_rev)
+
+    # sort first_and_last_revs by timestamp ascending
+    first_and_last_revs.sort(key=lambda x: x.get('timestamp'))
+
+    return first_and_last_revs
+
+def file_appender(entry: dict, rfcs: dict[str, dict], rfc_id_dict: dict[str, dict], file_names: dict):
     """
     Append text to a file.
 
@@ -44,8 +107,10 @@ def file_appender(entry: dict, rfcs: dict[str, dict]):
     shortcut = find_shortcut(entry_page_title)
 
 
-    filename = f"./logs/removed_rfcs_{entry.get('year')}.txt"
-    error_filename = f"./logs/removed_rfcs_errors_{entry.get('year')}.txt"
+    year = entry.get('year')
+    filename = f"./logs/removed_rfcs_{year}.txt"
+    error_filename = f"./logs/removed_rfcs_errors_{year}.txt"
+    file_names[year] = {filename, error_filename}
 
     # if rfcs is empty, log to error file
     if not rfcs:
@@ -59,26 +124,34 @@ def file_appender(entry: dict, rfcs: dict[str, dict]):
         with open(filename, 'a', encoding='utf-8') as f:
             timestamp: Timestamp = entry.get('timestamp')
             if timestamp:
-                timestamp_str = f"on {timestamp.isoformat()}"
+                # get YYYY-MM-DD HH:MM format
+                timestamp_str = f"expired {timestamp.year}-{timestamp.month:02}-{timestamp.day:02} {timestamp.hour:02}:{timestamp.minute:02}"
             else:
                 timestamp_str = ''
 
-            f.write(f"== Removed RFC from {shortcut} {entry.get('revid')} {timestamp_str}  ==\n")
-            for rfc in rfcs.values():
-                if rfc.get('link'):
-                    f.write(f"Link: {rfc['link']}\n")
+            #f.write(f"== Removed RFC from {shortcut} {entry.get('revid')} {timestamp_str}  ==\n")
+            for rfc in rfcs.values():                
+                link = rfc.get('link', '')
+                rfc_id = rfc.get('rfc_id', '')
+                diff_entries = rfc_id_dict.get(rfc_id, {}).get('diff_entries', [])
+                revisions = extract_revisions(diff_entries)
+
                 # only print the following if not seen before in printed_links
                 if rfc.get('link') not in printed_links:
+                    header = f"=== {link} {timestamp_str} ===\n" if link else f"== Removed RFC from {shortcut} {entry.get('revid')} {timestamp_str}  ==\n"
+                    f.write(f"{header}")
                     printed_links[rfc.get('link')] = shortcut
+                    f.write(f"* Id: {rfc_id}\n")
                     if rfc.get('user'):
-                        f.write(f"User: {rfc.get('user')}\n")
+                        f.write(f"* User: {rfc.get('user')}\n")
                     if rfc.get('datetime'):
-                        f.write(f"Date: {rfc.get('datetime')}\n")
+                        f.write(f"* Date: {rfc.get('datetime')}\n")
+                    if revisions:
+                        f.write("* Revisions affecting this RFC:\n")
+                        for rev in revisions:
+                            f.write(f"** {rev.get('diff_template')}\n")
                     if rfc.get('rfc_text'):
-                        f.write(f"RFC Text:\n{rfc.get('rfc_text')}\n\n")
-                # esle print previous section only
-                else:
-                    f.write(f"See above: {printed_links[rfc.get('link')]}\n\n")
+                        f.write(f"* RFC Text:\n{rfc.get('rfc_text')}\n\n")
 
 
 def extract_user_and_date(rfc_text: str) -> tuple[str, Timestamp]:
@@ -121,7 +194,7 @@ def extract_user_and_date(rfc_text: str) -> tuple[str, Timestamp]:
 
     return (user, rfc_datetime)
 
-def print_removed_entries(entry, print_keys, diff_table=None):
+def print_removed_entries(entry, print_keys, diff_table=None, rfc_id_dict=None, file_names=None):
     rfcs: dict[str, dict] = {}
     diff_compare = html_comparator(diff_table)
 
@@ -156,7 +229,13 @@ def print_removed_entries(entry, print_keys, diff_table=None):
         rfc_texts.append(rfc_text)
         # associate rfc_text with corresponding rfc in rfcs
         link = rfc_links[i]
+        # extract user and date
         user, rfc_datetime = extract_user_and_date(rfc_text)
+        # extract rfc_id from link
+        rfc_id_match = re.search(r'#rfc_([a-zA-Z0-9]+)', link)
+        if rfc_id_match:
+            rfc_id = rfc_id_match.group(1)
+            rfcs[link]['rfc_id'] = rfc_id
         if user:
             rfcs[link]['user'] = user
         if rfc_datetime:
@@ -166,7 +245,6 @@ def print_removed_entries(entry, print_keys, diff_table=None):
         # trim - Trim ''' from start and end of rfc_text
         rfc_text = rfc_text.strip().strip("'''")
         rfcs[link]['rfc_text'] = rfc_text
-        
 
 
     # find case where no rfc_links found
@@ -177,7 +255,7 @@ def print_removed_entries(entry, print_keys, diff_table=None):
     # find rfc_link but no rfc_texts
 
 
-    file_appender(entry, rfcs)
+    file_appender(entry, rfcs, rfc_id_dict)
 
     # print(f'== Removed RFC Entries ==')
     # for rfc_text in rfc_texts:
@@ -291,10 +369,10 @@ def print_removed_entries2(entry, print_keys, diff_table=None):
 
 
 
-def handle_revision(entry: dict):
+def handle_revision(entry: dict, rfc_id_dict: dict, file_names: dict):
     print_keys = ['revid', 'parentid', 'timestamp', 'user', 'comment']
     if 'removed' in entry.get('comment', '').lower():
-        print_removed_entries(entry, print_keys, entry.get('diff_table'))
+        print_removed_entries(entry, print_keys, entry.get('diff_table'), rfc_id_dict, file_names)
 
 if __name__ == "__main__":
     #entry = {'revid': 1063078964, 'parentid': 1062709000, 'timestamp': Timestamp(2022, 1, 1, 3, 1, 22), 'user': 'Legobot', 'comment': 'Removed: [[Wikipedia talk:Notability (organizations and companies)]].', 'diff_table': '<tr>\n  <td colspan="2" class="diff-lineno">Line 55:</td>\n  <td colspan="2" class="diff-lineno">Line 55:</td>\n</tr>\n<tr>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-deleted"><div>(Editors {{u|Binksternet}}, {{u|Black Kite}}, {{u|FormalDude}} expressed opinions above). &lt;s&gt;Also, @ {{u|CAMERAwMUSTACHE}}, {{u|ChicagoWikiEditor}}, {{u|FMSky}} if they have time for suggestions, would be welcome&lt;/s&gt;.</div></td>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-added"><div>(Editors {{u|Binksternet}}, {{u|Black Kite}}, {{u|FormalDude}} expressed opinions above). &lt;s&gt;Also, @ {{u|CAMERAwMUSTACHE}}, {{u|ChicagoWikiEditor}}, {{u|FMSky}} if they have time for suggestions, would be welcome&lt;/s&gt;.</div></td>\n</tr>\n<tr>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-deleted"><div>[[User:Cornerstonepicker|Cornerstonepicker]] ([[User talk:Cornerstonepicker|talk]]) 02:13, 3 December 2021 (UTC)}}</div></td>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-added"><div>[[User:Cornerstonepicker|Cornerstonepicker]] ([[User talk:Cornerstonepicker|talk]]) 02:13, 3 December 2021 (UTC)}}</div></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>\'\'\'[[Wikipedia talk:Notability (organizations and companies)#rfc_4ED494F|Wikipedia talk:Notability (organizations and companies)]]\'\'\'</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>{{rfcquote|text=</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>Should the line {{tq|The scope of this guideline covers all groups of people organized together for a purpose with the exception of non-profit educational institutions, religions or sects, and sports teams.}} be altered to state:</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>*\'\'\'A\'\'\': That esports are within the scope of this notability guideline</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>*\'\'\'B\'\'\': That esports are not within the scope of this notability guideline</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>*\'\'\'C\'\'\': No change</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><br /></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>This RfC is proposed in the context of the no consensus [[Wikipedia:Articles for deletion/Stalwart Esports (2nd nomination)|Stalwart Esports AfD]] where the closer opined that there was a "real need" for guidance on which guideline or policy was controlling.</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker" data-marker="−"></td>\n  <td class="diff-deletedline diff-side-deleted"><div>02:32, 2 December 2021 (UTC)}}</div></td>\n  <td colspan="2" class="diff-empty diff-side-added"></td>\n</tr>\n<tr>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-deleted"><div>{{RFC list footer|bio|hide_instructions={{{hide_instructions}}} }}</div></td>\n  <td class="diff-marker"></td>\n  <td class="diff-context diff-side-added"><div>{{RFC list footer|bio|hide_instructions={{{hide_instructions}}} }}</div></td>\n</tr>\n', 'page_title': 'Wikipedia:Requests_for_comment/Biographies', 'year': 2022}

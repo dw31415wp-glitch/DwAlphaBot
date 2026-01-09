@@ -1,14 +1,17 @@
 
 import datetime
-from config import LIST_OF_RFC_PAGES, RAW_PAGES_LIST, RFC_BOT_USERNAME, YEARS_TO_PROCESS, site
+import re
+from config import LIST_OF_RFC_PAGES, RAW_PAGES_LIST, RFC_BOT_USERNAME, RFC_ID_CSV, YEARS_TO_PROCESS, site
 from pywikibot import Page
 from pywikibot.page import Revision
 from pywikibot.site import APISite
 from pywikibot.diff import html_comparator
 from pywikibot.time  import Timestamp
 import shelve
+import csv
 
 from handle_revision import handle_revision, print_removed_entries
+
 
 
 class RevisionRun:
@@ -143,16 +146,86 @@ def list_run_stats():
         print(f"Year {year}: {count} revisions examined")
     db.close()
 
-def list_entry_details():
-    db = shelve.open('rfc.db', writeback=False)
-    year_counts = {}
+def get_rfc_id_list():
+    """Reads the RFC IDs from the CSV file and returns them as a dictionary."""
+    rfc_id_list = {}
+    with open(RFC_ID_CSV, 'r', encoding='utf-8') as csvfile:
+        reader = csv.reader(csvfile)
+        headers = next(reader)  # Skip header row
+        for row in reader:
+            dict = {}
+            for column_index, header in enumerate(headers):
+                if header == 'rfc_id':
+                    rfc_id = row[column_index]
+                    dict['rfc_id'] = rfc_id
+                else:
+                    value = row[column_index]
+                    dict[header] = value
+            rfc_id_list[rfc_id] = dict
+    return rfc_id_list
+
+def find_rfcs_in_text(rfc_texts: str, rfc_id_dict: dict) -> list[str]:
+    # look for #rfc_{id} to find RFCs in the text
+    # regex for #rfc_(\d+)
+    # regex for digits and letters
+    pattern = re.compile(r'#rfc_([a-zA-Z0-9]+)')
+    matches = pattern.findall(rfc_texts)
+    rfc_ids = []
+    for match in matches:
+        if match in rfc_id_dict:
+            # print(f"Found RFC ID {match} in text. Details: {rfc_id_dict[match]}")
+            rfc_ids.append(match)
+    return rfc_ids
+
+def scan_all_rfcs(db: shelve.Shelf[any], rfc_id_dict: dict):
     for key in db.keys():
         value = db[key]
         if key.startswith('RevisionRunEntryDetails-'):
             details = db[key]
-            handle_revision(details)
+            diff_texts = details.get('diff_table', [])
+            rfc_ids = find_rfcs_in_text(diff_texts, rfc_id_dict)
+            for rfc_id in rfc_ids:
+                bot_entry = rfc_id_dict.get(rfc_id, {})
+                # add details to bot_entry
+                diff_entries = bot_entry.get('diff_entries', [])
+                diff_entries.append(details)
+                bot_entry['diff_entries'] = diff_entries
+
+
+def upload_changes_to_wiki(file_names: dict):
+    for year, file_set in file_names.items():
+        # {filename, error_filename}
+        filename, error_filename = file_set
+        page_title = f"User:DwAlphaBot/RfcHistory/{year}"
+        # read local file content
+        try:
+            with open(filename, 'r', encoding='utf-8') as f:
+                content = f.read()
+            page = Page(site, page_title)
+            page.text = content
+            page.save(summary=f"Updating RFC history for {year}", botflag=True)
+            print(f"Uploaded changes to wiki page {page_title}")
+            # stop at one for testing
+            break
+        except Exception as e:
+            print(f"Error uploading changes to wiki page {page_title}: {e}")
+
+def list_entry_details():
+    db = shelve.open('rfc.db', writeback=False)
+    rfc_id_dict = get_rfc_id_list()
+    year_counts = {}
+    scan_all_rfcs(db,rfc_id_dict)
+    file_names = {}
+    for key in db.keys():
+        value = db[key]
+        if key.startswith('RevisionRunEntryDetails-'):
+            details = db[key]
+            handle_revision(details, rfc_id_dict, file_names)
             print(f"details for {key}")
     print("Summary of revisions examined per year:")
     for year, count in year_counts.items():
         print(f"Year {year}: {count} revisions examined")
     db.close()
+
+    # upload changes to wiki
+    upload_changes_to_wiki(file_names)

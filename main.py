@@ -1,4 +1,5 @@
 
+import argparse
 import asyncio
 import time
 from threading import Thread
@@ -15,14 +16,21 @@ from examine_history import examine_history, list_entry_details, list_run_stats
 
 SENTINEL = None
 
+valid_jobs = ['analyze_rfcs', 'examine_history', 'list_entry_details', 'list_run_stats']
+
 def main():
+
+    parser = argparse.ArgumentParser(description='Run the RFC Bot with specified job.')
+    parser.add_argument('-j', '--job', type=str, choices=valid_jobs, default=JOB_TO_RUN,
+                        help='The job to run. Options: analyze_rfcs, examine_history, list_entry_details, list_run_stats')
+    args = parser.parse_args()
 
     # get_rfc_list()
     
-    if JOB_TO_RUN == 'analyze_rfcs':
+    if args.job == 'analyze_rfcs':
         asyncio.run(analyze_rfcs.analyze_rfcs())
 
-    if JOB_TO_RUN == 'examine_history':
+    if args.job == 'examine_history':
         #list_run_stats()
         list_entry_details()
         #examine_history()

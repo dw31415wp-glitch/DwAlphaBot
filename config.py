@@ -79,5 +79,6 @@ YEARS_TO_PROCESS = [2024, 2025]
 MAX_RFC_PAGES_TO_PROCESS = 5
 JOB_TO_RUN = 'examine_history'  # Options: 'analyze_rfcs', 'examine_history'
 
+RFC_ID_CSV = './data/quarry-100675-enwp-rfcs-per-year-as-tracked-by-rfc-bot-run1057519.csv'
 
 site = pywikibot.Site('en', 'wikipedia')
