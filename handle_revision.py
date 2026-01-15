@@ -9,6 +9,8 @@ from config import site
 
 from pywikibot.diff import html_comparator
 
+from word_extraction import extract_words
+
 page_shortcuts = {}
 
 printed_links = {}
@@ -137,6 +139,9 @@ def file_appender(entry: dict, rfcs: dict[str, dict], rfc_id_dict: dict[str, dic
                 diff_entries = rfc_id_dict.get(rfc_id, {}).get('diff_entries', [])
                 revisions = extract_revisions(diff_entries)
 
+                # extract words from rfc text
+                extracted_words = extract_words(rfc.get('rfc_text', ''))
+
                 # only print the following if not seen before in printed_links
                 if rfc.get('link') not in printed_links:
                     header = f"=== {link} {timestamp_str} ===\n" if link else f"== Removed RFC from {shortcut} {entry.get('revid')} {timestamp_str}  ==\n"
@@ -152,8 +157,7 @@ def file_appender(entry: dict, rfcs: dict[str, dict], rfc_id_dict: dict[str, dic
                         for rev in revisions:
                             f.write(f"** {rev.get('diff_template')}\n")
                     if rfc.get('rfc_text'):
-                        f.write(f"* RFC Text:\n{rfc.get('rfc_text')}\n\n")
-
+                        f.write(f"* RFC Text (extracted words): {extracted_words}\n\n")
 
 def extract_user_and_date(rfc_text: str) -> tuple[str, Timestamp]:
     """

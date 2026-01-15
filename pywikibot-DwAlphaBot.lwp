@@ -1,11 +1,11 @@
 #LWP-Cookies-2.0
-Set-Cookie3: WMF-Last-Access=09-Jan-2026; path="/"; domain=en.wikipedia.org; path_spec; secure; expires="2026-02-10 12:00:00Z"; HttpOnly=None; version=0
-Set-Cookie3: NetworkProbeLimit=0.001; path="/"; domain=en.wikipedia.org; path_spec; secure; expires="2026-01-09 14:10:49Z"; SameSite=None; version=0
-Set-Cookie3: enwikiSession=m1ofr0roveu8p4scajtu2r26phr0dmrj; path="/"; domain=en.wikipedia.org; path_spec; secure; discard; HttpOnly=None; SameSite=None; version=0
-Set-Cookie3: enwiki_BPsession=ev1lgs28rr2qugn9qvj4584tkn821gvd; path="/"; domain=en.wikipedia.org; path_spec; secure; discard; HttpOnly=None; version=0
-Set-Cookie3: loginnotify_prevlogins=2026-y4i79g-givs0qzwls92zspmstawcy7zwl6fnod; path="/"; domain=en.wikipedia.org; path_spec; secure; expires="2026-07-08 13:11:38Z"; HttpOnly=None; version=0
-Set-Cookie3: cpPosIndex=2%401767964298%2321d3919a7f127d592d4fe80452574216; path="/"; domain=en.wikipedia.org; path_spec; secure; expires="2026-01-09 13:11:48Z"; HttpOnly=None; version=0
-Set-Cookie3: UseDC=master; path="/"; domain=en.wikipedia.org; path_spec; secure; expires="2026-01-09 13:11:48Z"; HttpOnly=None; version=0
-Set-Cookie3: WMF-Last-Access-Global=09-Jan-2026; path="/"; domain=.wikipedia.org; path_spec; domain_dot; secure; expires="2026-02-10 12:00:00Z"; HttpOnly=None; version=0
+Set-Cookie3: WMF-Last-Access=14-Jan-2026; path="/"; domain=en.wikipedia.org; path_spec; secure; expires="2026-02-15 00:00:00Z"; HttpOnly=None; version=0
+Set-Cookie3: enwikiSession=ip1jk6ammrl22pqjovc07o9fdd9b3vkc; path="/"; domain=en.wikipedia.org; path_spec; secure; discard; HttpOnly=None; SameSite=None; version=0
+Set-Cookie3: loginnotify_prevlogins=2026-181xl4a-6ewh1to83kyfl58b91ruyz94uoucmv6; path="/"; domain=en.wikipedia.org; path_spec; secure; expires="2026-07-13 02:32:24Z"; HttpOnly=None; version=0
+Set-Cookie3: NetworkProbeLimit=0.001; path="/"; domain=en.wikipedia.org; path_spec; secure; expires="2026-01-14 03:30:42Z"; SameSite=None; version=0
+Set-Cookie3: enwiki_BPsession=qd2dlffv9nvo8kqleibllr4hs0g97psn; path="/"; domain=en.wikipedia.org; path_spec; secure; discard; HttpOnly=None; version=0
+Set-Cookie3: cpPosIndex=2%401768357944%2321d3919a7f127d592d4fe80452574216; path="/"; domain=en.wikipedia.org; path_spec; secure; expires="2026-01-14 02:32:34Z"; HttpOnly=None; version=0
+Set-Cookie3: UseDC=master; path="/"; domain=en.wikipedia.org; path_spec; secure; expires="2026-01-14 02:32:34Z"; HttpOnly=None; version=0
+Set-Cookie3: WMF-Last-Access-Global=14-Jan-2026; path="/"; domain=.wikipedia.org; path_spec; domain_dot; secure; expires="2026-02-15 00:00:00Z"; HttpOnly=None; version=0
 Set-Cookie3: GeoIP="US:MN:Minneapolis:44.92:-93.32:v4"; path="/"; domain=.wikipedia.org; path_spec; domain_dot; secure; discard; version=0
 Set-Cookie3: WMF-Uniq=bs-39bmE3kd5pSJ5-lwUmwLjAAEBAFvdjZEraFmmzLYJDc0wS031mAWbA42AEfaw; path="/"; domain=.wikipedia.org; path_spec; domain_dot; secure; expires="2027-01-09 00:00:00Z"; HttpOnly=None; SameSite=None; version=0
