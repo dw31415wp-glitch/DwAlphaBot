@@ -1,5 +1,6 @@
 
 import datetime
+import os
 import re
 from config import LIST_OF_RFC_PAGES, RAW_PAGES_LIST, RFC_BOT_USERNAME, RFC_ID_CSV, YEARS_TO_PROCESS, site
 from pywikibot import Page
@@ -210,6 +211,14 @@ def upload_changes_to_wiki(file_names: dict):
             print(f"Error uploading changes to wiki page {page_title}: {e}")
 
 def list_entry_details():
+
+    # check for exising details and exit if they exist for the first year to avoid unnecessary processing
+    # check the logs directory
+
+    if os.path.exists('./logs/removed_rfcs_2020.txt'):
+        print("Details for the year 2020 already exist. Exiting to avoid unnecessary processing.")
+        return
+
     db = shelve.open('rfc.db', writeback=False)
     rfc_id_dict = get_rfc_id_list()
     year_counts = {}

@@ -151,13 +151,13 @@ def file_appender(entry: dict, rfcs: dict[str, dict], rfc_id_dict: dict[str, dic
                     if rfc.get('user'):
                         f.write(f"* User: {rfc.get('user')}\n")
                     if rfc.get('datetime'):
-                        f.write(f"* Date: {rfc.get('datetime')}\n")
+                        f.write(f"* Question Date: {rfc.get('datetime')}\n")
                     if revisions:
                         f.write("* Revisions affecting this RFC:\n")
                         for rev in revisions:
                             f.write(f"** {rev.get('diff_template')}\n")
                     if rfc.get('rfc_text'):
-                        f.write(f"* RFC Text (extracted words): {extracted_words}\n\n")
+                        f.write(f"* RFC question (some extracted words): {extracted_words}\n\n")
 
 def extract_user_and_date(rfc_text: str) -> tuple[str, Timestamp]:
     """
