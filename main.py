@@ -1,23 +1,42 @@
 
+import argparse
 import asyncio
 import time
 from threading import Thread
 
 from pywikibot import Page
 import analyze_rfcs
-from config import DRY_RUN, site, LIST_OF_RFC_PAGES
+from config import DRY_RUN, site, LIST_OF_RFC_PAGES, JOB_TO_RUN
 from find_rfc import get_rfc_list
 from kill_page import check_kill_page
 from event_handler import listen_eventstream
+from examine_history import examine_history, list_entry_details, list_run_stats
+#from examine_history import examine_history
 #from notification_processor import process_pending_notifications
 
 SENTINEL = None
 
+valid_jobs = ['analyze_rfcs', 'collect_rfc_history', 'publish_history']
+
 def main():
+
+    parser = argparse.ArgumentParser(description='Run the RFC Bot with specified job.')
+    parser.add_argument('-j', '--job', type=str, choices=valid_jobs, default=JOB_TO_RUN,
+                        help='The job to run. Options: analyze_rfcs, collect_rfc_history, publish_history, list_run_stats')
+    args = parser.parse_args()
 
     # get_rfc_list()
     
-    asyncio.run(analyze_rfcs.analyze_rfcs())
+    if args.job == 'analyze_rfcs':
+        asyncio.run(analyze_rfcs.analyze_rfcs())
+
+    if args.job == 'collect_rfc_history':
+        examine_history()
+
+    if args.job == 'publish_history':
+        #list_run_stats() # optional step to list the stats of all runs before publishing details
+        list_entry_details()
+        
 
     # exit for now
     return
